@@ -66,19 +66,30 @@ docker volume rm platform-dev-setup_db-data
 
 Admin console: http://localhost:2305 (credentials: `admin / admin`)
 
-**First-time setup:**
-
-1. Replace the temporary admin user (master realm, role `admin`)
-2. Create a realm `platform`
-3. Create a user and set the token TTL to 1000 minutes in realm settings
-
 Keycloak requires PostgreSQL — include `postgres` in `components` whenever `keycloak` is active.
+
+### Automated configuration
+
+Run `start.sh` after `up.sh` to apply the Ansible-based configuration:
+
+```bash
+./up.sh
+./start.sh
+```
+
+`start.sh` waits for Keycloak to be ready, then runs the playbook inside an `alpine/ansible` container on `shared_net`. The playbook is idempotent — safe to re-run.
+
+**What it configures:**
+
+- Creates the `platform` realm
+- Enables user self-registration
+- Activates the `platform` login theme
+
+Playbook: `ansible/playbooks/configure-keycloak.yml`
 
 ### Custom theme
 
-A custom login theme is mounted from `src/keycloak-theme/` and applied to the `platform` theme slot. To activate it, set the theme to `platform` in the Keycloak admin console under **Realm settings → Themes → Login theme**.
-
-The background image is at `src/keycloak-theme/login/resources/img/background.png`.
+A custom login theme is mounted from `src/keycloak-theme/` into the `platform` theme slot. The background image is at `src/keycloak-theme/login/resources/img/background.png`.
 
 ## Kafka
 

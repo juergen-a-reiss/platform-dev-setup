@@ -1,6 +1,7 @@
 #!/bin/bash
 
-docker compose -f docker-compose-postgres.yaml up -d > logs/postgres.txt 
-docker compose -f docker-compose-keycloak.yaml up  -d > logs/keycloak.txt
-docker compose -f docker-compose-kafka.yaml up -d > logs/kafka.txt
+if [ ! -f components ]; then
+  cp components.template components
+fi
 
+COMPOSE_PROFILES=$(paste -sd, components) docker compose up -d

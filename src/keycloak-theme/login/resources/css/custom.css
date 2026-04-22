@@ -1,0 +1,11 @@
+html::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url('../img/background.png');
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: blur(4px);
+  z-index: -1;
+}

@@ -1,6 +1,3 @@
 #!/bin/bash
 
-for i in `ls docker-compose*`
-do 
-    docker compose -f $i down
-done
+COMPOSE_PROFILES=$(paste -sd, components) docker compose down

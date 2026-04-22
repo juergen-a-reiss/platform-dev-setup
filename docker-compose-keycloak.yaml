@@ -1,4 +1,4 @@
-#  1. Start postgres first: docker compose -f docker-compose-postgres.yaml up --force-recreate -d > logs/postgres.txt
+#  1. Start postgres first: docker compose -f docker-compose-postgres.yaml up -d > logs/postgres.txt
 #  2. Create the keycloak database: docker exec postgres psql -U dockers -c "CREATE DATABASE keycloak;"
 #
 # Start Keycloak:

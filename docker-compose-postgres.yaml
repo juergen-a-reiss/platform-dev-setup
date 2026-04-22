@@ -1,13 +1,8 @@
-# docker compose -f docker-compose-postgres.yaml up --force-recreate -d > logs/postgres.txt 
+# docker compose -f docker-compose-postgres.yaml up -d > logs/postgres.txt 
 
 networks:
   shared_net:
-    name: shared_net
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.30.200.0/24
+    external: true
 
 
 services:

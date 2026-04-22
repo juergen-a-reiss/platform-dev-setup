@@ -1,0 +1,172 @@
+---
+# Keycloak Admin REST API: https://www.keycloak.org/docs-api/latest/rest-api/
+- name: Configure Keycloak Users
+  hosts: localhost
+  gather_facts: false
+  vars:
+    keycloak_url: "http://keycloak:8080" # The internal port is 8080.
+    keycloak_admin_user: "admin"
+    keycloak_admin_password: "admin"
+    realm_name: "platform"
+    client_name: "platform"
+    user_password: "DevPassword#2024"
+    client_roles:
+      - Subcontractor
+      - HomeOffice
+      - Support
+      - Admin
+    organizations:
+      - alias: org1
+        domain: org1.com
+      - alias: org2
+        domain: org2.com
+      - alias: org3
+        domain: org3.com
+
+  tasks:
+    - name: Obtain admin access token
+      uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_password }}"
+          grant_type: password
+        status_code: 200
+      register: auth
+
+    # Build a flat list of user defs: one per role×org + one per role outside orgs
+    - name: Build org users
+      set_fact:
+        org_users: >-
+          {{ org_users | default([]) + [{
+            'username':  (item[0] | lower) + '@' + item[1].domain,
+            'email':     (item[0] | lower) + '@' + item[1].domain,
+            'role':       item[0],
+            'org_alias':  item[1].alias
+          }] }}
+      loop: "{{ client_roles | product(organizations) | list }}"
+
+    - name: Build no-org users
+      set_fact:
+        noorg_users: >-
+          {{ noorg_users | default([]) + [{
+            'username':  (item | lower) + '@platform.local',
+            'email':     (item | lower) + '@platform.local',
+            'role':       item,
+            'org_alias':  ''
+          }] }}
+      loop: "{{ client_roles }}"
+
+    - name: Combine all users
+      set_fact:
+        users: "{{ org_users + noorg_users }}"
+
+    - name: Create users
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/users"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          username: "{{ item.username }}"
+          email: "{{ item.email }}"
+          enabled: true
+          emailVerified: true
+        status_code: [201, 409]
+      loop: "{{ users }}"
+
+    - name: Fetch all realm users
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/users?max=200"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+        status_code: 200
+      register: realm_users
+
+    - name: Build username → UUID map
+      set_fact:
+        user_id_map: >-
+          {{ dict(realm_users.json | map(attribute='username') | zip(realm_users.json | map(attribute='id'))) }}
+
+    - name: Set user passwords (non-temporary)
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/users/{{ user_id_map[item.username] }}/reset-password"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          type: password
+          value: "{{ user_password }}"
+          temporary: false
+        status_code: 204
+      loop: "{{ users }}"
+
+    - name: Fetch client UUID
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/clients?clientId={{ client_name }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+        status_code: 200
+      register: client_info
+
+    - name: Fetch all client roles
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/clients/{{ client_info.json[0].id }}/roles"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+        status_code: 200
+      register: all_roles
+
+    - name: Build role name → representation map
+      set_fact:
+        role_map: >-
+          {{ dict(all_roles.json | map(attribute='name') | zip(all_roles.json)) }}
+
+    - name: Assign client roles to users
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/users/{{ user_id_map[item.username] }}/role-mappings/clients/{{ client_info.json[0].id }}"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ [role_map[item.role]] }}"
+        status_code: 204
+      loop: "{{ users }}"
+
+    - name: Fetch all organizations
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/organizations?max=50"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+        status_code: 200
+      register: orgs
+
+    - name: Build org alias → ID map
+      set_fact:
+        org_id_map: >-
+          {{ dict(orgs.json | map(attribute='alias') | zip(orgs.json | map(attribute='id'))) }}
+
+    - name: Add users to their organizations
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/organizations/{{ org_id_map[item.org_alias] }}/members"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ user_id_map[item.username] }}"
+        status_code: [201, 409]
+      when: item.org_alias != ''
+      loop: "{{ users }}"

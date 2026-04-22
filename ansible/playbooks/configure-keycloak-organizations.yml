@@ -1,0 +1,65 @@
+---
+# Keycloak Admin REST API: https://www.keycloak.org/docs-api/latest/rest-api/
+- name: Configure Keycloak Organizations
+  hosts: localhost
+  gather_facts: false
+  vars:
+    keycloak_url: "http://keycloak:8080" # The internal port is 8080.
+    keycloak_admin_user: "admin"
+    keycloak_admin_password: "admin"
+    realm_name: "platform"
+    organizations:
+      - name: org1.com
+        alias: org1
+        domain: org1.com
+      - name: org2.com
+        alias: org2
+        domain: org2.com
+      - name: org3.com
+        alias: org3
+        domain: org3.com
+
+  tasks:
+    - name: Obtain admin access token
+      uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          client_id: admin-cli
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_password }}"
+          grant_type: password
+        status_code: 200
+      register: auth
+
+    - name: Enable organizations feature in realm '{{ realm_name }}'
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          realm: "{{ realm_name }}"
+          organizationsEnabled: true
+        status_code: 204
+
+    - name: Create organizations
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/organizations"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          name: "{{ item.name }}"
+          alias: "{{ item.alias }}"
+          enabled: true
+          domains:
+            - name: "{{ item.domain }}"
+              verified: false
+        status_code: [201, 409]
+      loop: "{{ organizations }}"

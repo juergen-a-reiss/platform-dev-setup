@@ -8,6 +8,12 @@
     keycloak_admin_user: "admin"
     keycloak_admin_password: "admin"
     realm_name: "platform"
+    client_name: "platform"
+    client_roles:
+      - Subcontractor
+      - HomeOffice
+      - Support
+      - Admin
 
   tasks:
     - name: Obtain admin access token
@@ -52,6 +58,66 @@
         body_format: json
         body:
           realm: "{{ realm_name }}"
+          # Login
           registrationAllowed: true
           loginTheme: "platform"
+          rememberMe: true
+          resetPasswordAllowed: true
+          loginWithEmailAllowed: true
+          registrationEmailAsUsername: true
+          duplicateEmailsAllowed: false
+          # Password policy: min 12, max 28, must not contain username,
+          # and must not contain a repeating sequence of 4+ characters (e.g. asdfasdfasdf).
+          # regexPattern requires the password to match — the negative lookahead (?!.*(.{4,})\1)
+          # causes the match to fail when any 4+ char substring repeats consecutively.
+          passwordPolicy: "length(12) and maxLength(28) and notUsername and regexPattern(^(?!.*(.{4,})\\1).*$) and passwordBlacklist(blacklist.txt)"
+          # User events — retained for 90 days (90 * 24 * 3600 s)
+          eventsEnabled: true
+          eventsExpiration: 7776000
+          adminEventsEnabled: true
+          adminEventsDetailsEnabled: true
+          # Brute force protection
+          bruteForceProtected: true
+          permanentLockout: false
+          failureFactor: 5
+          waitIncrementSeconds: 60
+          maxFailureWaitSeconds: 900
+          maxDeltaTimeSeconds: 43200
+          quickLoginCheckMilliSeconds: 1000
         status_code: 204
+
+    - name: Create client '{{ client_name }}'
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/clients"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          clientId: "{{ client_name }}"
+          enabled: true
+          publicClient: true
+        status_code: [201, 409]
+
+    - name: Fetch client UUID for '{{ client_name }}'
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/clients?clientId={{ client_name }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+        status_code: 200
+      register: client_info
+
+    - name: Create client roles
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm_name }}/clients/{{ client_info.json[0].id }}/roles"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ auth.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          name: "{{ item }}"
+        status_code: [201, 409]
+      loop: "{{ client_roles }}"

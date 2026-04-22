@@ -57,6 +57,7 @@ services:
       - "2305:8080"
     volumes:
       - ./src/keycloak-theme:/opt/keycloak/themes/platform
+      - ./src/keycloak-blacklist:/opt/keycloak/data/password-blacklists:ro
     networks:
       - shared_net
 

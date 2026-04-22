@@ -11,6 +11,17 @@ if ! docker ps --filter "name=^${KEYCLOAK_CONTAINER}$" --filter "status=running"
   exit 1
 fi
 
+BLACKLIST_DIR="${DIR}/src/keycloak-blacklist"
+BLACKLIST_FILE="${BLACKLIST_DIR}/blacklist.txt"
+BLACKLIST_URL="https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/100k-most-used-passwords-NCSC.txt"
+
+if [ ! -f "${BLACKLIST_FILE}" ]; then
+  echo "Downloading password blacklist..."
+  mkdir -p "${BLACKLIST_DIR}"
+  curl -fsSL "${BLACKLIST_URL}" -o "${BLACKLIST_FILE}"
+  echo "Blacklist downloaded ($(wc -l < "${BLACKLIST_FILE}") entries)."
+fi
+
 echo "Waiting for Keycloak to be ready..."
 until curl -sf "${KEYCLOAK_URL}/realms/master" > /dev/null 2>&1; do
   printf "."
@@ -24,6 +35,11 @@ docker run --rm \
   -v "${DIR}/ansible:/ansible" \
   -e ANSIBLE_CONFIG=/ansible/ansible.cfg \
   alpine/ansible \
-  ansible-playbook /ansible/playbooks/configure-keycloak.yml
+  sh -c "ansible-playbook /ansible/playbooks/configure-keycloak.yml \
+      && ansible-playbook /ansible/playbooks/configure-keycloak-organizations.yml \
+      && ansible-playbook /ansible/playbooks/configure-keycloak-users.yml"
 
 echo "Done."
+
+echo "Login to keycloak now with: http://localhost:2305/admin/master/console/#/platform/realm-settings and user admin/admin"
+

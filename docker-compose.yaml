@@ -59,6 +59,21 @@ services:
     networks:
       - shared_net
 
+  valkey:
+    # https://github.com/valkey-io/valkey
+    # docker exec -it valkey valkey-cli --stat
+    profiles: [valkey]
+    image: valkey/valkey:9.0.3
+    pull_policy: missing
+    container_name: valkey
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./src/valkey/valkey.conf:/usr/local/etc/valkey/valkey.conf
+    networks:
+      - shared_net
+
   mongodb:
     # docker exec -it mongodb mongosh --username platform --password platform
     profiles: [mongodb]

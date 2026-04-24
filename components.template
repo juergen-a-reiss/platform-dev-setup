@@ -4,3 +4,4 @@ postgres
 redis
 keycloak
 kafka
+valkey

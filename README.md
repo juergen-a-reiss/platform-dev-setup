@@ -27,10 +27,13 @@ On first run, `components.template` is copied to `components`. Edit `components`
 | Service    | Default port | Description              |
 |------------|-------------|--------------------------|
 | `cassandra`| 9042        | Cassandra 5              |
-| `mongodb`  | 27017       | mongodb 8                |
+| `mongodb`  | 27017       | mongodb                  |
 | `postgres` | 5432        | PostgreSQL 18            |
 | `keycloak` | 2305        | Keycloak 26 (HTTP)       |
 | `kafka`    | 9092        | Kafka 4 (KRaft, no ZK)   |
+| `redis`    | 6379        | Redis 8.6.2              |
+| `valkey`   | 6379        | Valkey. Redis fork       |
+| ``    |         |    |
 
 To start only a subset, edit `components`:
 

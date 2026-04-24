@@ -1,6 +1,6 @@
 # Platform Dev Setup
 
-Local development environment running PostgreSQL, Keycloak, and Kafka as a single Docker Compose project.
+Local development environment running a subset of very commonly used 3rd party software for a platform project as a single Docker Compose project. This project is inteded for _developers_. Feel free to clone it and change whatever you see fit. After all, the target is that a new developer can start the platform locally with a single command (or maybe two ;)). 
 
 ## Prerequisites
 
@@ -26,6 +26,8 @@ On first run, `components.template` is copied to `components`. Edit `components`
 
 | Service    | Default port | Description              |
 |------------|-------------|--------------------------|
+| `cassandra`| 9042        | Cassandra 5              |
+| `mongodb`  | 27017       | mongodb 8                |
 | `postgres` | 5432        | PostgreSQL 18            |
 | `keycloak` | 2305        | Keycloak 26 (HTTP)       |
 | `kafka`    | 9092        | Kafka 4 (KRaft, no ZK)   |
@@ -61,6 +63,10 @@ docker compose down
 docker volume rm platform-dev-setup_db-data
 ./up.sh
 ```
+
+## mongodb
+
+Start a one-node mongodb (no mongos) reachable at port 27017.
 
 ## Keycloak
 

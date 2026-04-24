@@ -27,6 +27,55 @@ services:
     networks:
       - shared_net
 
+  cassandra:
+    # schema management with spring boot: https://docs.spring.io/spring-data/cassandra/reference/cassandra/schema-management.html
+    # login: docker exec -it cassandra /opt/cassandra/bin/cqlsh
+    # https://cassandra.apache.org/doc/stable/cassandra/managing/configuration/cass_yaml_file.html
+    profiles: [cassandra]
+    image: cassandra:5.0.8
+    pull_policy: missing
+    container_name: cassandra
+    restart: always
+    ports:
+      - "9042:9042"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+      - ./src/cassandra/cassandra.yaml:/etc/cassandra/cassandra.yaml
+    networks:
+      - shared_net
+
+  redis:
+    # https://redis.io/docs/latest/operate/oss_and_stack/management/config/
+    # docker exec -it redis redis-cli --stat
+    profiles: [redis]
+    image: redis:8.6.2
+    pull_policy: missing
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./src/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - shared_net
+
+  mongodb:
+    # docker exec -it mongodb mongosh --username platform --password platform
+    profiles: [mongodb]
+    image: mongodb/mongodb-community-server:8.0.20-ubi8
+    pull_policy: missing
+    container_name: mongodb
+    restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=platform
+      - MONGO_INITDB_ROOT_PASSWORD=platform
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - shared_net
+
   # Admin console: http://localhost:2305 (admin / admin)
   #
   # Setup steps:
@@ -93,6 +142,10 @@ services:
 
 volumes:
   db-data:
+    driver: local
+  cassandra-data:
+    driver: local
+  mongodb-data:
     driver: local
   kafka:
     driver: local

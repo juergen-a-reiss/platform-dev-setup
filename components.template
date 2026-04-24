@@ -1,3 +1,6 @@
+cassandra
+mongodb
 postgres
+redis
 keycloak
 kafka
